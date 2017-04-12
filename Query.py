@@ -81,7 +81,7 @@ class QuerySet(object):
 		cmd = "select {} from {}".format( queryField, self.meta.db_table )
 		cmd = MysqlUtility.makeSafeSql( cmd )
 		if where: cmd += b" where " + where
-		#DEBUG_MSG( "%s::select(), %s" % (self.__name__, cmd) )
+		#DEBUG_MSG( "%s::select(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._select_callback, cmd, attrs, callback ) )
 
 	def _select_callback( self, cmd, fields, callback, result, rows, insertid, error ):
@@ -89,12 +89,12 @@ class QuerySet(object):
 		select命令回调
 		"""
 		if error is not None:
-			ERROR_MSG( "%s::_select_callback(), execute raw sql '%s' fault!!!; error: %s" % ( self.__name__, cmd, error ) )
+			ERROR_MSG( "%s::_select_callback(), execute raw sql '%s' fault!!!; error: %s" % ( self.__class__.__name__, cmd, error ) )
 			if callable( callback ):
 				callback( False, None )
 			return
 		
-		#DEBUG_MSG( "%s::_select_callback(), cmd: |%s|, result: |%s|" % ( self.__name__, cmd, result ) )
+		#DEBUG_MSG( "%s::_select_callback(), cmd: |%s|, result: |%s|" % ( self.__class__.__name__, cmd, result ) )
 		models = []
 		for row in result:
 			m = self.model()
@@ -117,10 +117,10 @@ class QuerySet(object):
 		cmd = "delete from {}".format( self.meta.db_table )
 		cmd = MysqlUtility.makeSafeSql( cmd )
 		if where: cmd += b" where " + where
-		#DEBUG_MSG( "%s::delete(), %s" % (self.__name__, cmd) )
+		#DEBUG_MSG( "%s::delete(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( cls._delete_callback, cmd, callback ) )
 
-	def _delete_callback( cls, cmd, callback, result, rows, insertid, error ):
+	def _delete_callback( self, cmd, callback, result, rows, insertid, error ):
 		"""
 		delete命令回调
 		"""
@@ -128,7 +128,7 @@ class QuerySet(object):
 			if callable( callback ):
 				callback( True, rows )
 		else:
-			ERROR_MSG( "%s::_delete_callback(), execute raw sql '%s' fault!!!; error: %s" % ( cls.__name__, cmd, error ) )
+			ERROR_MSG( "%s::_delete_callback(), execute raw sql '%s' fault!!!; error: %s" % ( self.__class__.__name__, cmd, error ) )
 			if callable( callback ):
 				callback( False, 0 )
 
@@ -154,7 +154,7 @@ class QuerySet(object):
 		cmd = "update {} set {}".format( self.meta.db_table, ", ".join( paramsKey ) )
 		cmd = MysqlUtility.makeSafeSql( cmd, paramsVal )
 		if where: cmd += b" where " + where
-		#DEBUG_MSG( "%s::update(), %s" % (self.__name__, cmd) )
+		#DEBUG_MSG( "%s::update(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._update_callback, cmd, callback ) )
 
 	def _update_callback( self, cmd, callback, result, rows, insertid, error ):
@@ -186,7 +186,7 @@ class QuerySet(object):
 		
 		cmd = "insert into {} ( {} ) values ( {} )".format( self.meta.db_table, ", ".join( fieldNames ), ", ".join( fieldValuesP ) )
 		cmd = MysqlUtility.makeSafeSql( cmd, fieldValues )
-		#DEBUG_MSG( "%s::insert(), %s" % (self.__name__, cmd) )
+		#DEBUG_MSG( "%s::insert(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._insert_callback, cmd, callback ) );
 
 	def _insert_callback( self, cmd, callback, result, rows, insertid, error ):
