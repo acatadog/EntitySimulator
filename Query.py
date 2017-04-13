@@ -118,7 +118,7 @@ class QuerySet(object):
 		cmd = MysqlUtility.makeSafeSql( cmd )
 		if where: cmd += b" where " + where
 		#DEBUG_MSG( "%s::delete(), %s" % (self.__class__.__name__, cmd) )
-		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( cls._delete_callback, cmd, callback ) )
+		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._delete_callback, cmd, callback ) )
 
 	def _delete_callback( self, cmd, callback, result, rows, insertid, error ):
 		"""
