@@ -26,7 +26,7 @@ class Field( object ):
 		Return "model_label.field_name" for fields attached to
 		models.
 		"""
-		if not hasattr(self, 'model'):
+		if not hasattr(self, 'model') or not self.model:
 			return super(Field, self).__str__()
 		return '%s.%s(%s)' % (self.model._meta.table_name, self.attrname, self.db_column)
 
@@ -40,11 +40,11 @@ class Field( object ):
 			return '<%s: %s>' % (path, name)
 		return '<%s>' % path
 
-	def set_attributes_from_name(self, attname):
-		assert self.attrname is None, "self.attrname = '%s', new '%s'" % (self.attrname, attname)
-		self.attname = attname
+	def set_attributes_from_name(self, attrname):
+		assert self.attrname is None, "self.attrname = '%s', new '%s'" % (self.attrname, attrname)
+		self.attrname = attrname
 		if not self.db_column:
-			self.db_column = attname
+			self.db_column = attrname
 
 	def contribute_to_class(self, cls, name):
 		"""
