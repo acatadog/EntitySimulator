@@ -169,7 +169,7 @@ class EntityModel(metaclass = ModelBase):
 		"""
 		"""
 		if success and isinstance(self._meta.fields[self._meta.primary_name], FieldInteger):
-			getattr( self, self._meta.primary_name, insertid )
+			setattr( self, self._meta.primary_name, insertid )
 		callback(success, self)
 
 
