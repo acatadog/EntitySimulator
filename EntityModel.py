@@ -137,7 +137,7 @@ class EntityModel(metaclass = ModelBase):
 		从服务器中把与自己有关的数据删除
 		"""
 		assert self._meta.primary_key, "primary key not set!"
-		self.objects.delete( callback, pk = self.get_primary_key_value() )
+		self.objects.delete( callback, (self._meta.primary_name, self.get_primary_key_value()) )
 
 	def writeToDB( self, callback = None, forceInsert = False ):
 		"""
@@ -155,7 +155,7 @@ class EntityModel(metaclass = ModelBase):
 		
 		d.pop(self._meta.primary_key, None)
 		if self.get_primary_key_value() and not forceInsert:  # 主键已经有值了，且不强行插入数据，则只能是更新
-			qs = self.objects.filter(pk = self.get_primary_key_value())
+			qs = self.objects.filter((self._meta.primary_name, self.get_primary_key_value()))
 			qs.update(functools.partial(self._write_to_db_update_callback, callback), **d)
 		else:							 # 主键无值，直接插入新数据
 			self.objects.insert(functools.partial(self._write_to_db_insert_callback, callback), **d)

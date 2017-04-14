@@ -68,7 +68,7 @@ class Q(Node):
 		r = []
 		for q in self.children:
 			if isinstance(q, Q):
-				r.append(q.as_sql())
+				r.append(q.as_sql(primary_key))
 			else:
 				k, v = q
 				sv = k.rsplit("__", 1)
