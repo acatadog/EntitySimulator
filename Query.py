@@ -41,20 +41,30 @@ class QuerySet(object):
 		obj.model = self.model
 		obj.meta = self.meta
 		obj.filters = list( self.filters )
+		return obj
+
+	def attr2field(self, *args, **kwargs):
+		"""
+		把参数转換成sql的字段名，值不变
+		@return: array of tuple like as [(field1, value1), ...]
+		"""
+		fields = self.meta.fields
+		l = list(args) + list(kwargs.items())
+		vs = [(fields[k].db_column, v) for k, v in l]
+		return vs
 
 	def build_where_clauses(self, *args, **kwargs):
 		"""
 		@return bytes; where sql
 		"""
-		vs = list(args) + list(kwargs.items())
+		vs = self.attr2field(*args, **kwargs)
 		r = []
-		pk = self.meta.primary_key
 		for v in vs:
 			if isinstance(v, Q):
-				r.append( v.as_sql(pk) )
+				r.append( v.as_sql() )
 			else:
 				q = Q(v)
-				r.append( q.as_sql(pk) )
+				r.append( q.as_sql() )
 		return b" AND ".join(r)
 
 	def filter(self, *args, **kwargs):

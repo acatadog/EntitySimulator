@@ -61,14 +61,14 @@ class Q(Node):
 		obj.negate()
 		return obj
 
-	def as_sql(self, primary_key = ""):
+	def as_sql(self):
 		"""
 		@return: bytes
 		"""
 		r = []
 		for q in self.children:
 			if isinstance(q, Q):
-				r.append(q.as_sql(primary_key))
+				r.append(q.as_sql())
 			else:
 				k, v = q
 				sv = k.rsplit("__", 1)
@@ -76,7 +76,7 @@ class Q(Node):
 					ops = "exact"
 				else:
 					ops = sv[1]
-				lh = sv[0].encode() if sv[0] != primary_key else primary_key.encode()
+				lh = sv[0].encode()
 				op = self.operators[ops]
 				if ops == "in":
 					vs = [ process_param(ve) for ve in v ]
