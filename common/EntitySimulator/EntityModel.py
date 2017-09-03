@@ -4,7 +4,6 @@
 """
 import functools, inspect
 
-from KBEDebug import *
 import MysqlUtility
 
 from .Fields import FieldInteger
@@ -163,13 +162,14 @@ class EntityModel(metaclass = ModelBase):
 	def _write_to_db_update_callback(self, callback, success, rows):
 		"""
 		"""
-		callback(success, self)
+		if callable( callback ):
+			callback(success, self)
 
 	def _write_to_db_insert_callback(self, callback, success, insertid):
 		"""
 		"""
 		if success and isinstance(self._meta.fields[self._meta.primary_name], FieldInteger):
 			setattr( self, self._meta.primary_name, insertid )
-		callback(success, self)
 
-
+		if callable( callback ):
+			callback(success, self)

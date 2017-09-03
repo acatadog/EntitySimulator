@@ -38,14 +38,57 @@ https://docs.djangoproject.com/en/1.11/ref/models/expressions/#django.db.models.
 
 telnet localhost 40000
 ---------------------
+	from EntitySimulator.utils.query_utils import Q
+	from EntitySimulator.utils.expressions import F
+
 	g_result = []
 	def cb(success, models): g_result.append((success, models))
 
 	TestTable.objects.select(cb)
-	g_result[-1][-1]
 
-	TestTable(i1 = 12, i2 = 34.0, sm_s1 = "abc", sm_s2 = b"gggtttvvv")
-	m = TestTable.writeToDB(cb)
+	# 等于
+	TestTable.objects.select(cb, i1 = 1)
+
+	# 大于
+	TestTable.objects.select(cb, i1__gt = 1)
+
+	# 大于等于
+	TestTable.objects.select(cb, i1__gte = 1)
+
+	# 小于
+	TestTable.objects.select(cb, i1__lt = 1)
+
+	# 小于等于
+	TestTable.objects.select(cb, i1__lte = 1)
+
+	# 值是1、3或7
+	TestTable.objects.select(cb, i1__in = (1,3,7))
+
+	# 在范围 1 - 10 之间
+	TestTable.objects.select(cb, i1__range = (1, 10))
+
+	# xxx ILIKE 'yyy'
+	TestTable.objects.select(cb, sm_s1__iexact = "abc")
+	TestTable.objects.select(cb, sm_s1__iexact = None)
+
+	# 小于等于10或大于等于100
+	TestTable.objects.select(cb, Q(i1__lte = 10) | Q(i2__gte = 100))
+
+	# order by 以及 limit
+	TestTable.objects.order_by("databaseID", "-i1").limit(1, 10).select(cb, databaseID = 100)
+
+	TestTable.objects.filter(databaseID = 1).update(cb, i1 = 1111, sm_s1 = "cba")
+	TestTable.objects.filter(databaseID = 123).update(cb, i1 = 220 + F("i1") + 110, sm_s1 = "cba")
+	TestTable.objects.filter(databaseID = 456).update(cb, i1 = 220 + F("i1") + F("i2") + 110, sm_s1 = "cba")
+
+
+	# 写入数据
+	m = TestTable(i1 = 12, i2 = 34.0, sm_s1 = "abc", sm_s2 = b"gggtttvvv")
+	m.writeToDB(cb)
 	m.databaseID
 
 	TestTable.objects.filter(databaseID = m.id).update(cb, i1 = 1111, sm_s1 = "cba")
+	TestTable.objects.filter(databaseID = m.id).update(cb, i1 = F("i1") + 110, sm_s1 = "cba")
+
+	# update custom_TestTable set sm_i1 = 220 + sm_i1 + sm_i2 + 110, sm_s1 = "cha" where id = xxx
+	TestTable.objects.filter(databaseID = m.id).update(cb, i1 = 220 + F("i1") + F("i2") + 110, sm_s1 = "cba")

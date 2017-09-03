@@ -19,6 +19,8 @@ class QuerySet(object):
 		self.model = None
 		self.meta = None
 		self.filters = []
+		self.limit_opt = tuple()  # 查询上限 -> (min, max)
+		self.order_by_opt = tuple()
 
 		if model_class:
 			self.set_model(model_class)
@@ -41,31 +43,43 @@ class QuerySet(object):
 		obj.model = self.model
 		obj.meta = self.meta
 		obj.filters = list( self.filters )
+		obj.limit_opt = self.limit_opt
+		obj.order_by_opt = self.order_by_opt
 		return obj
-
-	def attr2field(self, *args, **kwargs):
-		"""
-		把参数转換成sql的字段名，值不变
-		@return: array of tuple like as [(field1, value1), ...]
-		"""
-		fields = self.meta.fields
-		l = list(args) + list(kwargs.items())
-		vs = [(fields[k].db_column, v) for k, v in l]
-		return vs
 
 	def build_where_clauses(self, *args, **kwargs):
 		"""
 		@return bytes; where sql
 		"""
-		vs = self.attr2field(*args, **kwargs)
+		vs = list(args) + list(kwargs.items())
 		r = []
 		for v in vs:
 			if isinstance(v, Q):
-				r.append( v.as_sql() )
+				r.append( v.as_sql(self.meta) )
 			else:
 				q = Q(v)
-				r.append( q.as_sql() )
-		return b" AND ".join(r)
+				r.append( q.as_sql(self.meta) )
+		where = b" AND ".join(r)
+		return where and b" WHERE " + where
+
+	def build_order_by_clauses(self):
+		"""
+		@return bytes; mysql order by clauses
+		"""
+		if not self.order_by_opt:
+			return b""
+
+		metaField = self.meta.fields
+		orderby = []
+		for k in self.order_by_opt:
+			o = " ASC"
+			c = k[0]
+			if c in "-+":
+				k = k[1:]
+				if c == "-":
+					o = " DESC"
+			orderby.append(metaField[k].db_column + o)
+		return (" ORDER BY " + ", ".join(orderby)).encode()
 
 	def filter(self, *args, **kwargs):
 		"""
@@ -74,6 +88,22 @@ class QuerySet(object):
 		"""
 		obj = self.clone()
 		obj.filters.extend( list(args) + list(kwargs.items()) )
+		return obj
+
+	def limit(self, min, max):
+		"""
+		"""
+		assert isinstance(min, int) and isinstance(max, int) and min <= max
+		obj = self.clone()
+		obj.limit_opt = (min, max)
+		return obj
+
+	def order_by(self, *args):
+		"""
+		@param args: 字段列表，例如：order_by("id", "-name")。减号开头表示降序排序
+		"""
+		obj = self.clone()
+		obj.order_by_opt = tuple(args)
 		return obj
 
 	def select(self, callback, *args, **kwargs):
@@ -88,9 +118,15 @@ class QuerySet(object):
 		attrs = list( self.meta.fields )
 		fields = [ self.meta.fields[e].db_column for e in attrs ]
 		queryField = ", ".join( fields )
-		cmd = "select {} from {}".format( queryField, self.meta.db_table )
-		cmd = MysqlUtility.makeSafeSql( cmd )
-		if where: cmd += b" where " + where
+		select = "SELECT {} FROM {}".format( queryField, self.meta.db_table )
+		cmd = b"".join([
+			MysqlUtility.makeSafeSql( select ),
+			where,
+			self.build_order_by_clauses(),
+			self.limit_opt and (" LIMIT %d, %d" % self.limit_opt).encode() or b"",
+		])
+		
+		
 		#DEBUG_MSG( "%s::select(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._select_callback, cmd, attrs, callback ) )
 
@@ -124,9 +160,8 @@ class QuerySet(object):
 		arg = self.filters + list(args) + list(kwargs.items())
 		where = self.build_where_clauses(*arg)
 		
-		cmd = "delete from {}".format( self.meta.db_table )
-		cmd = MysqlUtility.makeSafeSql( cmd )
-		if where: cmd += b" where " + where
+		cmd = "DELETE FROM {}".format( self.meta.db_table )
+		cmd = MysqlUtility.makeSafeSql( cmd ) + where
 		#DEBUG_MSG( "%s::delete(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._delete_callback, cmd, callback ) )
 
@@ -158,12 +193,14 @@ class QuerySet(object):
 		paramsVal = []
 		kw = list(args) + list(kwargs.items())
 		for k, v in kw:
-			paramsKey.append( "{} = %s".format( self.meta.fields[k].db_column ) )
-			paramsVal.append( v )
+			if hasattr(v, "resolve_expression"):
+				paramsKey.append( "{} = {}".format( self.meta.fields[k].db_column, v.resolve_expression(self.meta) ) )
+			else:
+				paramsKey.append( "{} = %s".format( self.meta.fields[k].db_column ) )
+				paramsVal.append( v )
 		
-		cmd = "update {} set {}".format( self.meta.db_table, ", ".join( paramsKey ) )
-		cmd = MysqlUtility.makeSafeSql( cmd, paramsVal )
-		if where: cmd += b" where " + where
+		cmd = "UPDATE {} SET {}".format( self.meta.db_table, ", ".join( paramsKey ) )
+		cmd = MysqlUtility.makeSafeSql( cmd, paramsVal ) + where
 		#DEBUG_MSG( "%s::update(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._update_callback, cmd, callback ) )
 
@@ -194,7 +231,7 @@ class QuerySet(object):
 			fieldValues.append( v )
 			fieldValuesP.append( "%s" )
 		
-		cmd = "insert into {} ( {} ) values ( {} )".format( self.meta.db_table, ", ".join( fieldNames ), ", ".join( fieldValuesP ) )
+		cmd = "INSERT INTO {} ( {} ) VALUES ( {} )".format( self.meta.db_table, ", ".join( fieldNames ), ", ".join( fieldValuesP ) )
 		cmd = MysqlUtility.makeSafeSql( cmd, fieldValues )
 		#DEBUG_MSG( "%s::insert(), %s" % (self.__class__.__name__, cmd) )
 		KBEngine.executeRawDatabaseCommand( cmd, functools.partial( self._insert_callback, cmd, callback ) );
