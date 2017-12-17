@@ -4,7 +4,7 @@
 """
 import functools
 
-from KBEDebug import *
+#from KBEDebug import *
 
 from MysqlUtility import process_param
 

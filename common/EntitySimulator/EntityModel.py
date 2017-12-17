@@ -152,7 +152,7 @@ class EntityModel(metaclass = ModelBase):
 		for k, t in self._meta.fields.items():
 			d[k] = self.__dict__[k]
 		
-		d.pop(self._meta.primary_key, None)
+		d.pop(self._meta.primary_name, None)
 		if self.get_primary_key_value() and not forceInsert:  # 主键已经有值了，且不强行插入数据，则只能是更新
 			qs = self.objects.filter((self._meta.primary_name, self.get_primary_key_value()))
 			qs.update(functools.partial(self._write_to_db_update_callback, callback), **d)
